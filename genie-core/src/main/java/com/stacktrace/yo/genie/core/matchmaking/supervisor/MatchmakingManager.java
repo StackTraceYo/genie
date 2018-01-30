@@ -5,12 +5,12 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 
-public class MatchingSupervisor extends AbstractActor {
+public class MatchmakingManager extends AbstractActor {
 
     private final LoggingAdapter myLogger = Logging.getLogger(getContext().getSystem(), this);
 
     public static Props props() {
-        return Props.create(MatchingSupervisor.class);
+        return Props.create(MatchmakingManager.class);
     }
 
     @Override
@@ -28,4 +28,23 @@ public class MatchingSupervisor extends AbstractActor {
         return receiveBuilder()
                 .build();
     }
+
+
+    public final static class Protocol {
+
+        public static final class RequestCreateMatchGroup {
+            public final String groupId;
+            public final String regionId;
+
+            public RequestCreateMatchGroup(String groupId, String regionId) {
+                this.groupId = groupId;
+                this.regionId = regionId;
+            }
+        }
+
+        public static final class MatchGroupCreated {
+        }
+
+    }
+
 }

@@ -4,6 +4,7 @@ import akka.actor.AbstractActor;
 import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import com.stacktrace.yo.genie.core.matchmaking.supervisor.MatchmakingManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,18 +41,34 @@ public class MatchGroup extends AbstractActor {
     public Receive createReceive() {
         return receiveBuilder()
                 .match(Protocol.JoinMatchGroup.class, r -> {
-                    myLogger.info("Adding Request {}", r.requestId);
-                    addRequest(r.requestId);
-                    getSender().tell(new Protocol.MatchGroupJoined(r.requestId), getSelf());
+                    if (this.regionId.equals(r.regionId) && this.groupId.equals(r.groupId)) {
+                        myLogger.info("Adding Request {}", r.requestId);
+                        addRequest(r.requestId, r.regionId);
+                        getSender().tell(new Protocol.MatchGroupJoined(r.requestId, r.groupId, r.regionId), getSelf());
+                    } else {
+                        myLogger.warning(
+                                "Ignoring JoinMatch request for {}-{}. This actor is responsible for {}-{}.",
+                                r.groupId, r.regionId, this.groupId, this.regionId
+                        );
+                    }
                 })
-                .build();
+                .match(MatchmakingManager.Protocol.RequestCreateMatchGroup.class, r -> {
+                    if (this.groupId.equals(r.groupId) && this.regionId.equals(r.regionId)) {
+                        getSender().tell(new MatchmakingManager.Protocol.MatchGroupCreated(), getSelf());
+                    } else {
+                        myLogger.warning(
+                                "Ignoring RequestCreateMatchGroup request for {}-{}.This actor is responsible for {}-{}.",
+                                r.groupId, r.regionId, this.groupId, this.regionId
+                        );
+                    }
+                }).build();
     }
 
-    private List<String> addRequest(String requestId) {
+    private List<String> addRequest(String requestId, String regionId) {
         if (requestList == null) {
             requestList = new ArrayList<>();
         }
-        requestList.add(requestId);
+        requestList.add(requestId + "-" + regionId);
         myLogger.info("Request List:{}", requestList);
         return requestList;
     }
@@ -60,17 +77,25 @@ public class MatchGroup extends AbstractActor {
 
         static final class JoinMatchGroup {
             String requestId;
+            String groupId;
+            String regionId;
 
-            JoinMatchGroup(final String requestId) {
+            JoinMatchGroup(final String requestId, final String groupId, final String regionId) {
                 this.requestId = requestId;
+                this.groupId = groupId;
+                this.regionId = regionId;
             }
         }
 
         static final class MatchGroupJoined {
             String requestId;
+            String groupId;
+            String regionId;
 
-            MatchGroupJoined(final String requestId) {
+            MatchGroupJoined(final String requestId, final String groupId, final String regionId) {
                 this.requestId = requestId;
+                this.groupId = groupId;
+                this.regionId = regionId;
             }
         }
     }
